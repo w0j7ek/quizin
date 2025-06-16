@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Quiz 20 pytań</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    .question { margin-bottom: 24px; }
+    .answers label { display: block; margin-bottom: 5px; }
+    .correct { color: green; }
+    .wrong { color: red; }
+    #results { margin-top: 32px; }
+    textarea { width: 100%; min-height: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Quiz z pliku tekstowego</h1>
+  <p><b>Wklej pytania (format: pytanie, A. odpowiedź, B. odpowiedź, C. odpowiedź, D. odpowiedź, Poprawna: X):</b></p>
+  <textarea id="manualInput" placeholder="Wklej pytania tutaj..."></textarea>
+  <br>
+  <button id="loadBtn">Wczytaj pytania i rozpocznij quiz</button>
+
+  <form id="quizForm" style="display:none;">
+    <div id="quiz"></div>
+    <button type="submit">Zakończ quiz</button>
+  </form>
+  <div id="results"></div>
+
+  <script>
+    function stripLetter(line) {
+      return line.replace(/^[A-D]\.\s*/, '').trim();
+    }
+
+    function parseQuestions(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const questions = [];
+      for (let i = 0; i < lines.length; ) {
+        if (lines[i].endsWith('?')) {
+          const q = lines[i];
+          const opts = [
+            stripLetter(lines[i+1]),
+            stripLetter(lines[i+2]),
+            stripLetter(lines[i+3]),
+            stripLetter(lines[i+4]),
+          ];
+          let correct = null;
+          if (lines[i+5] && lines[i+5].toLowerCase().startsWith('poprawna:')) {
+            const correctLetter = lines[i+5].slice(9).trim().toUpperCase();
+            const idx = {A:0, B:1, C:2, D:3}[correctLetter];
+            correct = opts[idx];
+            i += 6;
+          } else {
+            i += 5;
+          }
+          questions.push({q, opts, correct});
+        } else {
+          i++;
+        }
+      }
+      return questions;
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    document.getElementById('loadBtn').onclick = function() {
+      const text = document.getElementById('manualInput').value;
+      if (!text.trim()) {
+        alert("Wklej pytania!");
+        return;
+      }
+      let questions = parseQuestions(text);
+      if (questions.length < 20) {
+        alert("Musi być co najmniej 20 pytań!");
+        return;
+      }
+      questions = shuffle(questions).slice(0, 20);
+
+      const quizDiv = document.getElementById('quiz');
+      quizDiv.innerHTML = '';
+      questions.forEach((q, idx) => {
+        const opts = shuffle([...q.opts]);
+        q.shuffled = opts;
+        q.shuffledCorrect = opts.indexOf(q.correct);
+        const qDiv = document.createElement('div');
+        qDiv.className = 'question';
+        qDiv.innerHTML = `<strong>${idx+1}. ${q.q}</strong>`;
+        const answersDiv = document.createElement('div');
+        answersDiv.className = 'answers';
+        opts.forEach((opt, oidx) => {
+          const id = `q${idx}_${oidx}`;
+          answersDiv.innerHTML += `<label><input type="radio" name="q${idx}" value="${oidx}" required> ${opt}</label>`;
+        });
+        qDiv.appendChild(answersDiv);
+        quizDiv.appendChild(qDiv);
+      });
+      document.getElementById('quizForm').style.display = '';
+      document.getElementById('results').innerHTML = '';
+      window.quizQuestions = questions;
+    };
+
+    document.getElementById('quizForm').onsubmit = function(e) {
+      e.preventDefault();
+      const form = e.target;
+      let score = 0;
+      const out = [];
+      const questions = window.quizQuestions;
+      for (let idx = 0; idx < questions.length; ++idx) {
+        const q = questions[idx];
+        const userAns = form[`q${idx}`].value;
+        const correctIdx = q.shuffledCorrect;
+        let res = `<div><strong>${idx+1}. ${q.q}</strong><br>`;
+        q.shuffled.forEach((opt, oidx) => {
+          const style = (oidx == correctIdx) ? 'class="correct"' : (oidx == userAns ? 'class="wrong"' : '');
+          const mark = (oidx == correctIdx) ? ' (poprawna)' : (oidx == userAns ? ' (Twoja)' : '');
+          res += `<span ${style}>${opt}${mark}</span><br>`;
+        });
+        if (userAns == correctIdx) {
+          score++;
+          res += '<span class="correct">Poprawnie! ✅</span>';
+        } else {
+          res += '<span class="wrong">Błędna odpowiedź ❌</span>';
+        }
+        res += '</div><hr>';
+        out.push(res);
+      }
+      document.getElementById('results').innerHTML = `<h2>Twój wynik: ${score} / 20</h2>${out.join('')}`;
+      document.getElementById('quizForm').style.display = 'none';
+      window.scrollTo(0, document.body.scrollHeight);
+    };
+  </script>
+</body>
+</html>

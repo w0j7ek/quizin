@@ -26,6 +26,5 @@ Poprawna: C
 
 ## To do
 
-* zmiana ilości pytań na quiz
 * dodanie wielokrotnego wyboru
-* zmiana obrzydliwego UI
+
